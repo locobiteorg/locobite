@@ -4,7 +4,7 @@ import '../shared/models/models.dart';
 import '../shared/models/order.dart' as model;
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:8080';
+  static const String baseUrl = 'https://locobite.onrender.com';
   
   // Active session customer details
   static Customer? currentCustomer;
