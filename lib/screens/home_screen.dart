@@ -31,6 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
   late TextEditingController _coachCtrl;
   late TextEditingController _seatCtrl;
   late TextEditingController _arrivalCtrl;
+  String _guestName = '';
+  bool _askedForName = false;
 
   @override
   void initState() {
@@ -41,6 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _coachCtrl    = TextEditingController(text: _train.coach);
     _seatCtrl     = TextEditingController(text: _train.seat);
     _arrivalCtrl  = TextEditingController(text: _train.arrival);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _ensureUserName());
   }
 
   @override
@@ -62,6 +65,78 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   int get _cartCount => _cart.fold(0, (s, i) => s + i.qty);
+
+  String get _displayName {
+    final fromApi = ApiService.currentCustomer?.name.trim() ?? '';
+    if (fromApi.isNotEmpty && !fromApi.startsWith('Traveller')) return fromApi;
+    if (_guestName.isNotEmpty) return _guestName;
+    if (fromApi.isNotEmpty) return fromApi;
+    return 'Guest';
+  }
+
+  bool get _needsName {
+    final n = _displayName;
+    return n.isEmpty || n == 'Guest' || n.startsWith('Traveller');
+  }
+
+  Future<void> _ensureUserName() async {
+    if (!mounted || _askedForName || !_needsName) return;
+    _askedForName = true;
+    final ctrl = TextEditingController(
+      text: _displayName == 'Guest' ? '' : _displayName,
+    );
+    final name = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text('What should we call you?',
+          style: GoogleFonts.nunito(fontWeight: FontWeight.w900)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            hintText: 'Your name',
+          ),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    final trimmed = name?.trim() ?? '';
+    if (!mounted || trimmed.length < 2) return;
+    final customer = ApiService.currentCustomer;
+    if (customer != null) {
+      try {
+        await ApiService.login(customer.phone, name: trimmed);
+      } catch (_) {
+        customer.name = trimmed;
+      }
+    }
+    setState(() => _guestName = trimmed);
+  }
+
+  void _selectStation(int i) {
+    if (i == _selectedStation) return;
+    final hadCart = _cart.isNotEmpty;
+    setState(() {
+      if (hadCart) _cart.clear();
+      _selectedStation = i;
+      _train.arrival = _stations[i].eta;
+      _arrivalCtrl.text = _stations[i].eta;
+    });
+    if (hadCart && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Cart cleared — switched to ${_stations[i].name}')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -88,17 +163,25 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Good afternoon',
-                      style: GoogleFonts.nunito(
-                        fontSize: 11, color: Colors.white54,
-                        fontWeight: FontWeight.w700, letterSpacing: 1,
-                      )),
-                    Text(ApiService.currentCustomer?.name ?? 'Arjun Kumar',
-                      style: GoogleFonts.nunito(
-                        fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
-                  ]),
-                  const Spacer(),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                      Text('Good afternoon',
+                        style: GoogleFonts.nunito(
+                          fontSize: 11, color: Colors.white54,
+                          fontWeight: FontWeight.w700, letterSpacing: 1,
+                        )),
+                      Text(_displayName,
+                        style: GoogleFonts.nunito(
+                          fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white)),
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: _buildStationPicker(),
+                      ),
+                    ]),
+                  ),
                   Stack(
                     children: [
                       IconButton(
@@ -131,6 +214,98 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  static const int _dummyNearestStationIndex = 0;
+
+  Widget _buildStationPicker() {
+    final station = _stations[_selectedStation];
+    final isNearest = _selectedStation == _dummyNearestStationIndex;
+    return PopupMenuButton<int>(
+      tooltip: 'Change station',
+      offset: const Offset(0, 36),
+      color: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      onSelected: (i) => _selectStation(i),
+      itemBuilder: (context) => [
+        for (var i = 0; i < _stations.length; i++)
+          PopupMenuItem<int>(
+            value: i,
+            child: Row(
+              children: [
+                Icon(
+                  i == _dummyNearestStationIndex
+                      ? Icons.near_me_rounded
+                      : Icons.train_rounded,
+                  size: 16,
+                  color: i == _selectedStation ? AppColors.primary : AppColors.muted,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _stations[i].name,
+                        style: GoogleFonts.nunito(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: AppColors.foreground,
+                        ),
+                      ),
+                      Text(
+                        i == _dummyNearestStationIndex
+                            ? '${_stations[i].code} · nearest (demo)'
+                            : '${_stations[i].code} · ${_stations[i].vendorCount} vendors',
+                        style: GoogleFonts.nunito(
+                          fontSize: 10,
+                          color: AppColors.muted,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (i == _selectedStation)
+                  const Icon(Icons.check_rounded, size: 18, color: AppColors.primary),
+              ],
+            ),
+          ),
+      ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 240),
+        child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white24),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.location_on_rounded, size: 14, color: Colors.white70),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                isNearest
+                    ? '${station.name} · nearest'
+                    : '${station.name} · order ahead',
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+                style: GoogleFonts.nunito(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const SizedBox(width: 2),
+            const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Colors.white70),
+          ],
+        ),
+      ),
+      ),
+    );
+  }
+
   Widget _buildTrainBar() {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -149,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('${_train.number} Duronto Exp',
+            Text('${_train.number} Matsyagandha Exp',
               style: GoogleFonts.nunito(
                 color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13)),
             Text('Coach ${_train.coach} · Seat ${_train.seat}',
@@ -309,7 +484,7 @@ class _HomeScreenState extends State<HomeScreen> {
             itemBuilder: (_, i) => _StationCard(
               station: _stations[i],
               isSelected: _selectedStation == i,
-              onTap: () => setState(() => _selectedStation = i),
+              onTap: () => _selectStation(i),
             ),
           ),
         ),
@@ -456,8 +631,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () {
                   setState(() => _navIndex = i);
                   if (i == 1) Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => CartScreen(cart: _cart, train: _train,
-                      onCartChanged: (c) => setState(() {})),
+                    builder: (_) => CartScreen(
+                      cart: _cart,
+                      train: _train,
+                      stationName: _stations[_selectedStation].name,
+                      onCartChanged: (c) => setState(() {}),
+                    ),
                   ));
                   if (i == 3) Navigator.push(context, MaterialPageRoute(
                     builder: (_) => const ProfileScreen()));

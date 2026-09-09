@@ -85,7 +85,7 @@ class CartItem {
 class Customer {
   final String id;
   final String phone;
-  final String name;
+  String name;
   int duesBalancePaise;
   bool isBlockedForDues;
   String? deletedAt;

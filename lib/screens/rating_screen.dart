@@ -54,9 +54,9 @@ class _RatingScreenState extends State<RatingScreen> {
               child: const Center(child: Text('🍛', style: TextStyle(fontSize: 36))),
             ),
             const SizedBox(height: 12),
-            Text('Saoji Kitchen', style: GoogleFonts.nunito(
+            Text('Sri Krishna Bhavan', style: GoogleFonts.nunito(
               fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.foreground)),
-            Text('Order #LB847291 · Nagpur Jn',
+            Text('Order #LB847291 · Udupi Junction',
               style: GoogleFonts.nunito(fontSize: 13, color: AppColors.muted)),
             const SizedBox(height: 32),
 

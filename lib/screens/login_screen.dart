@@ -16,11 +16,14 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool _showOtp = false;
   bool _loading = false;
+  final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final List<TextEditingController> _otpCtrls =
       List.generate(6, (_) => TextEditingController());
   final List<FocusNode> _otpFocus = List.generate(6, (_) => FocusNode());
   int _resendTimer = 30;
+
+  String get _typedName => _nameCtrl.text.trim();
 
   void _loginAndProceed() async {
     final otpCode = _otpCtrls.map((c) => c.text).join();
@@ -32,7 +35,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     setState(() => _loading = true);
     try {
-      // Verify OTP via Supabase
       final AuthResponse res = await Supabase.instance.client.auth.verifyOTP(
         type: OtpType.email,
         email: _emailCtrl.text.trim(),
@@ -40,8 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (res.user != null) {
-        // Authenticate with our Go Backend (using email as the unique identifier)
-        await ApiService.login(_emailCtrl.text.trim());
+        await ApiService.login(_emailCtrl.text.trim(), name: _typedName);
         if (mounted) {
           _goHome();
         }
@@ -72,6 +73,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _nameCtrl.dispose();
     _emailCtrl.dispose();
     for (final c in _otpCtrls) c.dispose();
     for (final f in _otpFocus) f.dispose();
@@ -99,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildPhoneStep() {
-    return Padding(
+    return SingleChildScrollView(
       key: const ValueKey('phone'),
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -125,37 +127,47 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('EMAIL ADDRESS',
-                  style: GoogleFonts.nunito(
-                    fontSize: 10, fontWeight: FontWeight.w800,
-                    color: AppColors.muted, letterSpacing: 1.5,
-                  )),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(Icons.email_outlined, size: 20, color: AppColors.muted),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: _emailCtrl,
-                        keyboardType: TextInputType.emailAddress,
-                        style: GoogleFonts.nunito(
-                          fontSize: 16, fontWeight: FontWeight.w700,
-                          color: AppColors.foreground,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Enter your email',
-                          hintStyle: GoogleFonts.nunito(
-                            color: AppColors.muted.withOpacity(0.5)),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
+                _labeledField(
+                  label: 'YOUR NAME',
+                  icon: Icons.person_outline_rounded,
+                  child: TextField(
+                    controller: _nameCtrl,
+                    textCapitalization: TextCapitalization.words,
+                    style: GoogleFonts.nunito(
+                      fontSize: 16, fontWeight: FontWeight.w700,
+                      color: AppColors.foreground,
                     ),
-                  ],
+                    decoration: InputDecoration(
+                      hintText: 'Enter your name',
+                      hintStyle: GoogleFonts.nunito(
+                        color: AppColors.muted.withOpacity(0.5)),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
                 ),
-                const Divider(color: AppColors.primaryLight, thickness: 2),
+                const SizedBox(height: 20),
+                _labeledField(
+                  label: 'EMAIL ADDRESS',
+                  icon: Icons.email_outlined,
+                  child: TextField(
+                    controller: _emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    style: GoogleFonts.nunito(
+                      fontSize: 16, fontWeight: FontWeight.w700,
+                      color: AppColors.foreground,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Enter your email',
+                      hintStyle: GoogleFonts.nunito(
+                        color: AppColors.muted.withOpacity(0.5)),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -174,6 +186,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   label: 'Get OTP',
                   color: AppColors.amber,
                   onTap: () async {
+                    if (_typedName.length < 2) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter your name')),
+                      );
+                      return;
+                    }
                     if (_emailCtrl.text.isEmpty || !_emailCtrl.text.contains('@')) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Please enter a valid email address')),
@@ -226,6 +244,32 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Widget _labeledField({
+    required String label,
+    required IconData icon,
+    required Widget child,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+          style: GoogleFonts.nunito(
+            fontSize: 10, fontWeight: FontWeight.w800,
+            color: AppColors.muted, letterSpacing: 1.5,
+          )),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Icon(icon, size: 20, color: AppColors.muted),
+            const SizedBox(width: 12),
+            Expanded(child: child),
+          ],
+        ),
+        const Divider(color: AppColors.primaryLight, thickness: 2),
+      ],
+    );
+  }
+
   Widget _buildOtpStep() {
     return Padding(
       key: const ValueKey('otp'),
@@ -255,6 +299,12 @@ class _LoginScreenState extends State<LoginScreen> {
               TextSpan(text: _emailCtrl.text,
                 style: const TextStyle(fontWeight: FontWeight.w800,
                   color: AppColors.foreground)),
+              if (_typedName.isNotEmpty) ...[
+                const TextSpan(text: ' for '),
+                TextSpan(text: _typedName,
+                  style: const TextStyle(fontWeight: FontWeight.w800,
+                    color: AppColors.foreground)),
+              ],
             ],
           )),
           const SizedBox(height: 32),

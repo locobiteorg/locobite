@@ -33,18 +33,44 @@ func main() {
 	vendor1 := uuid.MustParse("11111111-1111-1111-1111-111111111111")
 	vendor2 := uuid.MustParse("22222222-2222-2222-2222-222222222222")
 	vendor3 := uuid.MustParse("33333333-3333-3333-3333-333333333333")
+	vendor4 := uuid.MustParse("44444444-4444-4444-4444-444444444444")
+	vendor5 := uuid.MustParse("55555555-5555-5555-5555-555555555555")
+	vendor6 := uuid.MustParse("66666666-6666-6666-6666-666666666666")
+	vendor7 := uuid.MustParse("77777777-7777-7777-7777-777777777777")
+	vendor8 := uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+	vendor9 := uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+	vendor10 := uuid.MustParse("cccccccc-cccc-cccc-cccc-cccccccccccc")
+	vendor11 := uuid.MustParse("dddddddd-dddd-dddd-dddd-dddddddddddd")
+	vendor12 := uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")
+	vendor13 := uuid.MustParse("10101010-1010-1010-1010-101010101010")
+	vendor14 := uuid.MustParse("14141414-1414-1414-1414-141414141414")
+	vendor15 := uuid.MustParse("15151515-1515-1515-1515-151515151515")
+	vendor16 := uuid.MustParse("16161616-1616-1616-1616-161616161616")
 
 	vendors := []struct {
-		id     uuid.UUID
-		name   string
+		id      uuid.UUID
+		name    string
 		station string
-		tier   string
-		fssai  string
-		accept string
+		tier    string
+		fssai   string
+		accept  string
 	}{
-		{vendor1, "Saoji Kitchen", "NGP", "level_3", "valid", "manual"},
-		{vendor2, "Nagpur Orange Bites", "NGP", "level_2", "valid", "manual"},
-		{vendor3, "Punjab Da Dhaba", "NGP", "level_1", "valid", "manual"},
+		{vendor1, "Sri Krishna Bhavan", "UD", "level_3", "valid", "manual"},
+		{vendor2, "Malpe Harbour Kitchen", "UD", "level_2", "valid", "manual"},
+		{vendor3, "Car Street Snacks", "UD", "level_1", "valid", "manual"},
+		{vendor4, "Padubidri Platform Tea", "PDD", "level_1", "valid", "manual"},
+		{vendor5, "Ghee Roast House", "MAJN", "level_3", "valid", "manual"},
+		{vendor6, "Hampankatta Buns & Ice Cream", "MAJN", "level_2", "valid", "manual"},
+		{vendor7, "Kundapur Kori Rotti", "KUDA", "level_2", "valid", "manual"},
+		{vendor8, "Surathkal NITK Snacks", "SL", "level_1", "valid", "manual"},
+		{vendor9, "Gokarna Beach Shack", "GOK", "level_2", "valid", "manual"},
+		{vendor10, "Barkur Temple Canteen", "BKJ", "level_1", "valid", "manual"},
+		{vendor11, "Mulki River Catch", "MULK", "level_2", "valid", "manual"},
+		{vendor12, "Byndoor Beach Meals", "BYNR", "level_2", "valid", "manual"},
+		{vendor13, "Bhatkal Biryani House", "BTJL", "level_3", "valid", "manual"},
+		{vendor14, "Murdeshwar Temple Kitchen", "MRDW", "level_2", "valid", "manual"},
+		{vendor15, "Central Station Tiffin", "MAQ", "level_1", "valid", "manual"},
+		{vendor16, "Kumta Kokum Cafe", "GOK", "level_1", "valid", "manual"},
 	}
 
 	for _, v := range vendors {
@@ -73,22 +99,73 @@ func main() {
 		tenMin   bool
 	}
 	items := []item{
-		// Saoji Kitchen (Vendor 1)
-		{uuid.MustParse("11111111-1111-1111-1111-111111111001"), vendor1, "Saoji Chicken Curry + Rice", 18000, "non_veg", false, false},
-		{uuid.MustParse("11111111-1111-1111-1111-111111111002"), vendor1, "Saoji Mutton", 24000, "non_veg", false, false},
-		{uuid.MustParse("11111111-1111-1111-1111-111111111003"), vendor1, "Plain Rice", 6000, "veg", false, false},
-		{uuid.MustParse("11111111-1111-1111-1111-111111111004"), vendor1, "Dal Fry", 8000, "veg", false, false},
-		
-		// Nagpur Orange Bites (Vendor 2)
-		{uuid.MustParse("22222222-2222-2222-2222-222222222005"), vendor2, "Poha", 4000, "veg", true, true},
-		{uuid.MustParse("22222222-2222-2222-2222-222222222006"), vendor2, "Vada Pav", 3000, "veg", true, true},
-		{uuid.MustParse("22222222-2222-2222-2222-222222222007"), vendor2, "Fresh Orange Juice", 6000, "veg", true, true},
-		{uuid.MustParse("22222222-2222-2222-2222-222222222008"), vendor2, "Samosa (2 pcs)", 4000, "veg", true, true},
+		{uuid.MustParse("11111111-1111-1111-1111-111111111001"), vendor1, "Masala Dosa", 7000, "veg", false, false},
+		{uuid.MustParse("11111111-1111-1111-1111-111111111002"), vendor1, "Idli Vada Combo", 5500, "veg", true, true},
+		{uuid.MustParse("11111111-1111-1111-1111-111111111003"), vendor1, "Filter Coffee", 2500, "veg", true, true},
+		{uuid.MustParse("11111111-1111-1111-1111-111111111004"), vendor1, "Sambar Rice", 8000, "veg", false, false},
 
-		// Punjab Da Dhaba (Vendor 3)
-		{uuid.MustParse("33333333-3333-3333-3333-333333333009"), vendor3, "Veg Thali", 15000, "veg", false, false},
-		{uuid.MustParse("33333333-3333-3333-3333-333333333010"), vendor3, "Paneer Butter Masala + 2 Rotis", 18000, "veg", false, false},
-		{uuid.MustParse("33333333-3333-3333-3333-333333333011"), vendor3, "Chicken Curry + Rice", 20000, "non_veg", false, false},
+		{uuid.MustParse("22222222-2222-2222-2222-222222222005"), vendor2, "Bangda Fry + Neer Dosa", 18000, "non_veg", false, false},
+		{uuid.MustParse("22222222-2222-2222-2222-222222222006"), vendor2, "Fish Curry Rice", 16000, "non_veg", false, false},
+		{uuid.MustParse("22222222-2222-2222-2222-222222222007"), vendor2, "Anjal Tawa Fry", 26000, "non_veg", false, false},
+		{uuid.MustParse("22222222-2222-2222-2222-222222222008"), vendor2, "Neer Dosa (3 pcs)", 5000, "veg", true, true},
+
+		{uuid.MustParse("33333333-3333-3333-3333-333333333009"), vendor3, "Goli Baje (6 pcs)", 4000, "veg", true, true},
+		{uuid.MustParse("33333333-3333-3333-3333-333333333010"), vendor3, "Mangalore Buns (2)", 4500, "veg", true, true},
+		{uuid.MustParse("33333333-3333-3333-3333-333333333011"), vendor3, "Cutting Chai", 2000, "veg", true, true},
+
+		{uuid.MustParse("44444444-4444-4444-4444-444444444012"), vendor4, "Ginger Tea", 2000, "veg", true, true},
+		{uuid.MustParse("44444444-4444-4444-4444-444444444013"), vendor4, "Bonda (4 pcs)", 3500, "veg", true, true},
+		{uuid.MustParse("44444444-4444-4444-4444-444444444014"), vendor4, "Banana Chips", 4000, "veg", true, true},
+
+		{uuid.MustParse("55555555-5555-5555-5555-555555555015"), vendor5, "Chicken Ghee Roast", 26000, "non_veg", false, false},
+		{uuid.MustParse("55555555-5555-5555-5555-555555555016"), vendor5, "Prawn Ghee Roast", 32000, "non_veg", false, false},
+		{uuid.MustParse("55555555-5555-5555-5555-555555555017"), vendor5, "Neer Dosa (4 pcs)", 6000, "veg", true, true},
+
+		{uuid.MustParse("66666666-6666-6666-6666-666666666018"), vendor6, "Gadbad Ice Cream", 12000, "veg", true, false},
+		{uuid.MustParse("66666666-6666-6666-6666-666666666019"), vendor6, "Mangalore Buns", 5000, "veg", true, true},
+		{uuid.MustParse("66666666-6666-6666-6666-666666666020"), vendor6, "Tender Coconut", 6000, "veg", true, true},
+
+		{uuid.MustParse("77777777-7777-7777-7777-777777777021"), vendor7, "Kori Rotti Meal", 18000, "non_veg", false, false},
+		{uuid.MustParse("77777777-7777-7777-7777-777777777022"), vendor7, "Kori Gassi + Rice", 16000, "non_veg", false, false},
+		{uuid.MustParse("77777777-7777-7777-7777-777777777023"), vendor7, "Veg Saaru Rice", 9000, "veg", false, false},
+
+		{uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaa024"), vendor8, "Pundi (3 pcs)", 4000, "veg", true, true},
+		{uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaa025"), vendor8, "Goli Baje", 3500, "veg", true, true},
+		{uuid.MustParse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaa026"), vendor8, "Filter Coffee", 3000, "veg", true, true},
+
+		{uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb027"), vendor9, "Fish Thali", 20000, "non_veg", false, false},
+		{uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb028"), vendor9, "Veg Konkani Thali", 14000, "veg", false, false},
+		{uuid.MustParse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb029"), vendor9, "Sol Kadhi", 5000, "veg", true, true},
+
+		{uuid.MustParse("cccccccc-cccc-cccc-cccc-ccccccccc030"), vendor10, "Holige (2 pcs)", 5000, "veg", true, true},
+		{uuid.MustParse("cccccccc-cccc-cccc-cccc-ccccccccc031"), vendor10, "Rice Bath", 7000, "veg", false, false},
+		{uuid.MustParse("cccccccc-cccc-cccc-cccc-ccccccccc032"), vendor10, "Buttermilk", 2500, "veg", true, true},
+
+		{uuid.MustParse("dddddddd-dddd-dddd-dddd-ddddddddd033"), vendor11, "Prawn Fry Rice", 18000, "non_veg", false, false},
+		{uuid.MustParse("dddddddd-dddd-dddd-dddd-ddddddddd034"), vendor11, "Kane Rava Fry", 22000, "non_veg", false, false},
+		{uuid.MustParse("dddddddd-dddd-dddd-dddd-ddddddddd035"), vendor11, "Coconut Rice", 8000, "veg", false, false},
+
+		{uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeee036"), vendor12, "Byndoor Fish Curry Meal", 17000, "non_veg", false, false},
+		{uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeee037"), vendor12, "Crab Sukka", 18000, "non_veg", false, false},
+		{uuid.MustParse("eeeeeeee-eeee-eeee-eeee-eeeeeeeee038"), vendor12, "Veg Meals", 9000, "veg", false, false},
+
+		{uuid.MustParse("10101010-1010-1010-1010-101010101039"), vendor13, "Bhatkali Chicken Biryani", 22000, "non_veg", false, false},
+		{uuid.MustParse("10101010-1010-1010-1010-101010101040"), vendor13, "Mutton Biryani", 26000, "non_veg", false, false},
+		{uuid.MustParse("10101010-1010-1010-1010-101010101041"), vendor13, "Egg Biryani", 14000, "non_veg", false, false},
+		{uuid.MustParse("10101010-1010-1010-1010-101010101042"), vendor13, "Veg Dum Biryani", 12000, "veg", false, false},
+
+		{uuid.MustParse("14141414-1414-1414-1414-141414141043"), vendor14, "Temple Meals", 9000, "veg", false, false},
+		{uuid.MustParse("14141414-1414-1414-1414-141414141044"), vendor14, "Poha + Coffee", 5000, "veg", true, true},
+		{uuid.MustParse("14141414-1414-1414-1414-141414141045"), vendor14, "Coconut Payasa", 4000, "veg", true, true},
+
+		{uuid.MustParse("15151515-1515-1515-1515-151515151046"), vendor15, "Rava Idli (4 pcs)", 5500, "veg", true, true},
+		{uuid.MustParse("15151515-1515-1515-1515-151515151047"), vendor15, "Buns + Chutney", 5000, "veg", true, true},
+		{uuid.MustParse("15151515-1515-1515-1515-151515151048"), vendor15, "Kesari Bath", 4000, "veg", true, true},
+		{uuid.MustParse("15151515-1515-1515-1515-151515151049"), vendor15, "Filter Coffee", 3000, "veg", true, true},
+
+		{uuid.MustParse("16161616-1616-1616-1616-161616161050"), vendor16, "Kokum Sherbet", 4000, "veg", true, true},
+		{uuid.MustParse("16161616-1616-1616-1616-161616161051"), vendor16, "Pathrado (4 pcs)", 8000, "veg", true, true},
+		{uuid.MustParse("16161616-1616-1616-1616-161616161052"), vendor16, "Upkari Rice", 11000, "veg", false, false},
 	}
 
 	for _, it := range items {

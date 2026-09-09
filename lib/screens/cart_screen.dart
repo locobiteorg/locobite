@@ -10,11 +10,13 @@ import 'order_status_screen.dart';
 class CartScreen extends StatefulWidget {
   final List<CartItem> cart;
   final TrainInfo train;
+  final String stationName;
   final ValueChanged<List<CartItem>> onCartChanged;
 
   const CartScreen({
     super.key, required this.cart,
     required this.train, required this.onCartChanged,
+    this.stationName = 'Udupi Junction',
   });
 
   @override
@@ -217,7 +219,7 @@ class _CartScreenState extends State<CartScreen> {
               Text('DELIVERY AT', style: GoogleFonts.nunito(
                 fontSize: 8, color: AppColors.muted, fontWeight: FontWeight.w800,
                 letterSpacing: 1)),
-              Text('Nagpur Jn · ${widget.train.arrival}',
+              Text('${widget.stationName} · ${widget.train.arrival}',
                 style: GoogleFonts.nunito(
                   fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.foreground)),
             ])),

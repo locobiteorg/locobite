@@ -291,8 +291,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         _ListRow(
           icon: Icons.train_rounded,
-          title: 'Nagpur Jn (NGP) → Raipur Jn (R)',
-          subtitle: '12259 Duronto Exp',
+          title: 'Udupi Jn (UD) → Gokarna Road (GOK)',
+          subtitle: '12619 Matsyagandha Exp',
         ),
       ],
     );

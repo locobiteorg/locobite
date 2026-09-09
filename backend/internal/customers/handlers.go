@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -27,6 +28,7 @@ func (h *Handler) Routes(r chi.Router) {
 
 type loginBody struct {
 	Phone string `json:"phone"`
+	Name  string `json:"name"`
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
@@ -41,11 +43,15 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	displayName := strings.TrimSpace(body.Name)
+	if displayName == "" {
+		displayName = displayNameFromIdentifier(body.Phone)
+	}
+
 	c, err := h.Repo.GetByPhone(ctx, body.Phone)
 	if err == nil {
 		// Found customer. If soft-deleted, reactivate.
 		if c.DeletedAt != nil {
-			// Update to undelete
 			tx, txErr := h.Pool.Begin(ctx)
 			if txErr != nil {
 				httperr.Write(w, http.StatusInternalServerError, "internal_error", "failed to start transaction")
@@ -56,7 +62,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 				UPDATE customers
 				SET deleted_at = NULL, name = $2
 				WHERE id = $1
-			`, c.ID, "Traveller "+body.Phone[len(body.Phone)-4:])
+			`, c.ID, displayName)
 			if execErr != nil {
 				httperr.Write(w, http.StatusInternalServerError, "internal_error", "failed to reactivate customer")
 				return
@@ -66,7 +72,10 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			c.DeletedAt = nil
-			c.Name = "Traveller " + body.Phone[len(body.Phone)-4:]
+			c.Name = displayName
+		} else if strings.TrimSpace(body.Name) != "" && c.Name != displayName {
+			_, _ = h.Pool.Exec(ctx, `UPDATE customers SET name = $2 WHERE id = $1`, c.ID, displayName)
+			c.Name = displayName
 		}
 
 		httperr.JSON(w, http.StatusOK, map[string]any{
@@ -84,18 +93,10 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create new customer
-	name := "Traveller "
-	if len(body.Phone) >= 4 {
-		name += body.Phone[len(body.Phone)-4:]
-	} else {
-		name += body.Phone
-	}
-
 	newC := &Customer{
 		ID:    uuid.New(),
 		Phone: body.Phone,
-		Name:  name,
+		Name:  displayName,
 	}
 
 	if err := h.Repo.Create(ctx, newC); err != nil {
