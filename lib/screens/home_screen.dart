@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../main.dart';
 import 'vendor_screen.dart';
 import 'cart_screen.dart';
+import 'orders_screen.dart';
 import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -673,16 +674,27 @@ class _HomeScreenState extends State<HomeScreen> {
               child: GestureDetector(
                 onTap: () {
                   setState(() => _navIndex = i);
-                  if (i == 1) Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => CartScreen(
-                      cart: _cart,
-                      train: _train,
-                      stationName: _stations[_selectedStation].name,
-                      onCartChanged: (c) => setState(() {}),
-                    ),
-                  ));
-                  if (i == 3) Navigator.push(context, MaterialPageRoute(
-                    builder: (_) => const ProfileScreen()));
+                  Route<void>? route;
+                  if (i == 1) {
+                    route = MaterialPageRoute(
+                      builder: (_) => CartScreen(
+                        cart: _cart,
+                        train: _train,
+                        stationName: _stations[_selectedStation].name,
+                        onCartChanged: (c) => setState(() {}),
+                      ),
+                    );
+                  } else if (i == 2) {
+                    route = MaterialPageRoute(builder: (_) => const OrdersScreen());
+                  } else if (i == 3) {
+                    route = MaterialPageRoute(builder: (_) => const ProfileScreen());
+                  }
+                  // Return the highlight to Home when the pushed page closes.
+                  route == null
+                      ? null
+                      : Navigator.push(context, route).then((_) {
+                          if (mounted) setState(() => _navIndex = 0);
+                        });
                 },
                 child: Container(
                   color: Colors.transparent,

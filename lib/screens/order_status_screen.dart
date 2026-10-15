@@ -39,7 +39,10 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
         try {
           final history = await ApiService.getOrders(ApiService.currentCustomer!.id, limit: 5);
           final updated = history.firstWhere((o) => o.id == _order!.id, orElse: () => _order!);
-          if (mounted && updated.status != _order!.status || updated.paymentVerified != _order!.paymentVerified || updated.delayUpdatedAt != _order!.delayUpdatedAt) {
+          if (mounted &&
+              (updated.status != _order!.status ||
+                  updated.paymentVerified != _order!.paymentVerified ||
+                  updated.delayUpdatedAt != _order!.delayUpdatedAt)) {
             setState(() {
               _order = updated;
             });
@@ -276,7 +279,7 @@ class _OrderStatusScreenState extends State<OrderStatusScreen> {
                   ],
                   _buildStepper(currentStep, isTerminal),
                   const SizedBox(height: 12),
-                  _buildSimulationControls(),
+                  if (ApiService.showDemoControls) _buildSimulationControls(),
                   const SizedBox(height: 40),
                 ],
               ),

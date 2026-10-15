@@ -12,4 +12,7 @@ abstract class DiscoveryRepository {
   TrainInfo getCurrentTrain();
   List<Station> getUpcomingStations();
   List<Vendor> getVendorsForStation(int stationId);
+
+  /// Name of a vendor by backend id (for order history), or null if unknown.
+  String? vendorNameFor(String vendorId);
 }

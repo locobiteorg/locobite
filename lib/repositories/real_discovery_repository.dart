@@ -39,6 +39,16 @@ class RealDiscoveryRepository implements DiscoveryRepository {
     return _byStationCode[code] ?? const [];
   }
 
+  @override
+  String? vendorNameFor(String vendorId) {
+    for (final list in _byStationCode.values) {
+      for (final v in list) {
+        if (v.id == vendorId) return v.name;
+      }
+    }
+    return null;
+  }
+
   Vendor _vendorFromJson(Map<String, dynamic> j) {
     final station = kStations.firstWhere((s) => s.code == j['station_code'], orElse: () => kStations.first);
     final menu = [

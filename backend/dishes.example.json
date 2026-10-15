@@ -1,0 +1,15 @@
+{
+  "base_url": "https://ymgclwzuyjhajumohagy.supabase.co/storage/v1/object/public/dish-images/stock",
+  "dishes": [
+    {
+      "slug": "samosa",
+      "synonyms": [{ "name": "Samosa", "lang": "en" }, { "name": "समोसा", "lang": "hi" }],
+      "images": ["samosa-1.jpg", "samosa-2.jpg"]
+    },
+    {
+      "slug": "momos",
+      "synonyms": [{ "name": "Momos", "lang": "en" }, { "name": "मोमो", "lang": "hi" }],
+      "images": ["momos-1.jpg"]
+    }
+  ]
+}

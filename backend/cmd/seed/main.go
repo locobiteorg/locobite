@@ -75,8 +75,8 @@ func main() {
 
 	for _, v := range vendors {
 		_, err := tx.Exec(ctx, `
-			INSERT INTO vendors (id, name, station_code, subscription_tier, fssai_status, is_active, accept_mode)
-			VALUES ($1, $2, $3, $4, $5, TRUE, $6)
+			INSERT INTO vendors (id, name, station_code, subscription_tier, fssai_status, is_active, accept_mode, is_demo)
+			VALUES ($1, $2, $3, $4, $5, TRUE, $6, TRUE)
 			ON CONFLICT (id) DO UPDATE SET
 				name = EXCLUDED.name,
 				station_code = EXCLUDED.station_code,
@@ -188,8 +188,8 @@ func main() {
 	// Insert some demo customers
 	demoCustomerID := uuid.MustParse("99999999-9999-9999-9999-999999999999")
 	_, err = tx.Exec(ctx, `
-		INSERT INTO customers (id, phone, name, dues_balance_paise, is_blocked_for_dues)
-		VALUES ($1, '9876543210', 'Arjun Kumar', 4000, FALSE)
+		INSERT INTO customers (id, phone, name, dues_balance_paise, is_blocked_for_dues, is_demo)
+		VALUES ($1, '9876543210', 'Arjun Kumar', 4000, FALSE, TRUE)
 		ON CONFLICT (id) DO UPDATE SET
 			phone = EXCLUDED.phone,
 			name = EXCLUDED.name,
@@ -215,7 +215,8 @@ func main() {
 	// Add an outstanding due to ledger matching the 4000 paise fine
 	_, err = tx.Exec(ctx, `
 		INSERT INTO customer_dues_ledger (customer_id, amount_paise, reason, status)
-		VALUES ($1, 4000, 'Unpaid balance from past cancellation', 'pending')
+		SELECT $1, 4000, 'Unpaid balance from past cancellation', 'pending'
+		WHERE NOT EXISTS (SELECT 1 FROM customer_dues_ledger WHERE customer_id = $1 AND reason = 'Unpaid balance from past cancellation')
 	`, demoCustomerID)
 	if err != nil {
 		log.Fatalf("insert ledger outstanding due: %v", err)

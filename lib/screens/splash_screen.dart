@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/theme/app_colors.dart';
 import '../core/constants/app_strings.dart';
+import '../services/api_service.dart';
+import 'home_screen.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -25,14 +27,30 @@ class _SplashScreenState extends State<SplashScreen>
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
     _ctrl.forward();
 
-    Future.delayed(const Duration(milliseconds: 2200), () {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginScreen()),
-        );
+    Future.delayed(const Duration(milliseconds: 2200), _next);
+  }
+
+  /// Design/demo aid, inert unless built with
+  /// --dart-define=PREVIEW_CUSTOMER=<email-or-phone key>: signs in as that
+  /// customer through the backend (no OTP) and opens Home.
+  static const _previewCustomer = String.fromEnvironment('PREVIEW_CUSTOMER');
+
+  Future<void> _next() async {
+    if (!mounted) return;
+    if (_previewCustomer.isNotEmpty) {
+      try {
+        await ApiService.login(_previewCustomer, name: 'Preview Customer');
+        if (mounted) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+        }
+        return;
+      } catch (_) {
+        // Fall back to the normal login screen.
       }
-    });
+    }
+    if (mounted) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+    }
   }
 
   @override

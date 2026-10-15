@@ -213,6 +213,14 @@ class MockDiscoveryRepository implements DiscoveryRepository {
   Future<void> refresh() async {}
 
   @override
+  String? vendorNameFor(String vendorId) {
+    for (final v in _vendors) {
+      if (v.id == vendorId) return v.name;
+    }
+    return null;
+  }
+
+  @override
   TrainInfo getCurrentTrain() => _train;
 
   @override

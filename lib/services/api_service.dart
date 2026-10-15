@@ -4,6 +4,11 @@ import '../shared/models/models.dart';
 import '../shared/models/order.dart' as model;
 
 class ApiService {
+  /// Test-only panel that lets the customer act as the merchant (accept,
+  /// advance, reject). OFF in real builds — the merchant app does this now.
+  /// Enable with --dart-define=DEMO_CONTROLS=true.
+  static const bool showDemoControls = bool.fromEnvironment('DEMO_CONTROLS');
+
   static const String baseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://locobite.onrender.com');
   
   // Active session customer details
