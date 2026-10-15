@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../core/theme/app_colors.dart';
@@ -25,9 +26,9 @@ class _VendorScreenState extends State<VendorScreen> {
   int get _cartCount => widget.cart.fold(0, (s, i) => s + i.qty);
   int get _cartTotal => widget.cart.fold(0, (s, i) => s + i.price * i.qty);
 
-  int _getQty(int menuItemId) =>
+  int _getQty(String menuItemId) =>
     widget.cart.firstWhere((c) => c.menuItemId == menuItemId,
-      orElse: () => CartItem(menuItemId: -1, vendorId: -1, name: '', price: 0, qty: 0)).qty;
+      orElse: () => CartItem(menuItemId: '', vendorId: '', name: '', price: 0, qty: 0)).qty;
 
   void _adjust(MenuItem item, int delta) {
     setState(() {
@@ -112,8 +113,9 @@ class _VendorScreenState extends State<VendorScreen> {
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Wrap(spacing: 8, runSpacing: 8, children: [
-                    _infoBadge('⭐ ${widget.vendor.rating} (${widget.vendor.reviewCount})',
-                      const Color(0xFFF0FDF4), AppColors.green),
+                    if (widget.vendor.reviewCount > 0)
+                      _infoBadge('⭐ ${widget.vendor.rating} (${widget.vendor.reviewCount})',
+                        const Color(0xFFF0FDF4), AppColors.green),
                     if (widget.vendor.trusted)
                       _infoBadge('✓ Trusted Vendor', AppColors.primaryLight, AppColors.primary),
                     if (widget.vendor.fssai)
@@ -261,15 +263,27 @@ class _MenuItemRow extends StatelessWidget {
                     fontSize: 13, fontWeight: FontWeight.w800,
                     color: AppColors.foreground)),
                 const SizedBox(height: 2),
-                Text(item.desc,
-                  style: GoogleFonts.nunito(fontSize: 11, color: AppColors.muted)),
-                const SizedBox(height: 4),
+                if (item.desc.isNotEmpty) ...[
+                  Text(item.desc,
+                    style: GoogleFonts.nunito(fontSize: 11, color: AppColors.muted)),
+                  const SizedBox(height: 4),
+                ],
                 Text('₹${item.price}',
                   style: GoogleFonts.nunito(
                     fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.primary)),
               ]),
             ),
             const SizedBox(width: 12),
+            if (item.imageUrl != null && item.imageUrl!.isNotEmpty) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: CachedNetworkImage(
+                  imageUrl: item.imageUrl!, width: 56, height: 56, fit: BoxFit.cover,
+                  errorWidget: (_, __, ___) => Container(width: 56, height: 56, color: AppColors.primaryLight),
+                ),
+              ),
+              const SizedBox(width: 12),
+            ],
             if (qty == 0)
               GestureDetector(
                 onTap: isOpen ? () => onAdjust(1) : null,

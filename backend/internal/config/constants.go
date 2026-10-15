@@ -17,12 +17,16 @@ const (
 
 	// RollingWindow is used for dispute waivers, vendor dispute caps, and
 	// free rejection allowances.
-	RollingWindow = 5 * 24 * time.Hour
+	RollingWindow     = 5 * 24 * time.Hour
 	RollingWindowDays = 5
 
-	FreeDisputesPerWindow       = 3
-	VendorDisputeCapPerWindow   = 3
-	FreeRejectionsPerWindow     = 3
+	FreeDisputesPerWindow     = 3
+	VendorDisputeCapPerWindow = 3
+	FreeRejectionsPerWindow   = 3
+
+	// TrustedVendorDeliveredOrders is how many delivered orders earn the
+	// "Trusted" badge (earned, never purchased).
+	TrustedVendorDeliveredOrders = 100
 
 	PenaltyCustomerSharePercent = 75
 	PenaltyPlatformSharePercent = 25

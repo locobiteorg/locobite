@@ -33,20 +33,24 @@ class Station {
 }
 
 class MenuItem {
-  final int id;
+  /// Backend menu_items UUID.
+  final String id;
   final String name;
   final int price;
   final bool isVeg;
   final String desc;
+  /// Photo chosen by the merchant (from the shared dish library); null if none.
+  final String? imageUrl;
 
   const MenuItem({
     required this.id, required this.name, required this.price,
-    required this.isVeg, required this.desc,
+    required this.isVeg, required this.desc, this.imageUrl,
   });
 }
 
 class Vendor {
-  final int id;
+  /// Backend vendors UUID.
+  final String id;
   final int stationId;
   final String name;
   final String imageUrl;
@@ -70,8 +74,8 @@ class Vendor {
 }
 
 class CartItem {
-  final int menuItemId;
-  final int vendorId;
+  final String menuItemId;
+  final String vendorId;
   final String name;
   final int price;
   int qty;

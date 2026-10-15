@@ -22,6 +22,7 @@ type Handler struct {
 }
 
 func (h *Handler) Routes(r chi.Router) {
+	r.Get("/vendors", h.ListPublic)
 	r.Post("/vendors/login", h.Login)
 	r.Get("/vendors/{id}", h.Get)
 	r.Patch("/vendors/{id}", h.UpdateProfile)
@@ -401,4 +402,29 @@ func (h *Handler) DeleteMenuItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httperr.JSON(w, http.StatusOK, map[string]any{"status": "deleted"})
+}
+
+// ListPublic powers the customer app's discovery: GET /vendors?station_code=UD
+// returns live vendors with their available menus (see Postgres.ListPublic).
+func (h *Handler) ListPublic(w http.ResponseWriter, r *http.Request) {
+	list, err := h.Repo.ListPublic(r.Context(), strings.TrimSpace(r.URL.Query().Get("station_code")))
+	if err != nil {
+		httperr.Write(w, http.StatusInternalServerError, "internal_error", "failed to list vendors")
+		return
+	}
+	out := make([]map[string]any, 0, len(list))
+	for i := range list {
+		v := list[i]
+		menu := make([]map[string]any, 0, len(v.Menu))
+		for j := range v.Menu {
+			menu = append(menu, menuItemJSON(&v.Menu[j]))
+		}
+		m := vendorJSON(&v.Vendor)
+		delete(m, "email")
+		delete(m, "owner_name")
+		m["trusted"] = v.Trusted
+		m["menu_items"] = menu
+		out = append(out, m)
+	}
+	httperr.JSON(w, http.StatusOK, map[string]any{"vendors": out})
 }

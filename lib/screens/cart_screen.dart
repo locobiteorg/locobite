@@ -71,7 +71,7 @@ class _CartScreenState extends State<CartScreen> {
     setState(() => _placing = true);
     try {
       final items = widget.cart.map((item) => {
-        'menu_item_id': ApiService.mapMenuItemId(item.menuItemId),
+        'menu_item_id': item.menuItemId,
         'quantity': item.qty,
       }).toList();
 
@@ -87,7 +87,7 @@ class _CartScreenState extends State<CartScreen> {
 
       final order = await ApiService.placeOrder(
         customerId: customer.id,
-        vendorId: ApiService.mapVendorId(widget.cart.first.vendorId),
+        vendorId: widget.cart.first.vendorId,
         trainNumber: widget.train.number,
         direction: 'up',
         seatCoach: '${widget.train.coach} ${widget.train.seat}',

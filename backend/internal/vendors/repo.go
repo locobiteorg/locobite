@@ -3,6 +3,7 @@ package vendors
 import (
 	"context"
 	"errors"
+	"github.com/locobite/backend/internal/config"
 	"strconv"
 	"time"
 
@@ -74,6 +75,7 @@ type Repository interface {
 	ConfirmOfflineSale(ctx context.Context, tx pgx.Tx, id uuid.UUID) error
 	RecordTap(ctx context.Context, vendorID, customerID uuid.UUID) error
 
+	ListPublic(ctx context.Context, stationCode string) ([]PublicVendor, error)
 	ListMenuItems(ctx context.Context, vendorID uuid.UUID) ([]MenuItem, error)
 	CreateMenuItem(ctx context.Context, vendorID uuid.UUID, in MenuItemInput) (*MenuItem, error)
 	UpdateMenuItem(ctx context.Context, vendorID, itemID uuid.UUID, in MenuItemInput) (*MenuItem, error)
@@ -303,4 +305,78 @@ func dietOrDefault(d string) string {
 		return d
 	}
 	return "veg"
+}
+
+// PublicVendor is the customer-facing view of a live vendor, with its
+// available menu embedded so discovery needs one call.
+type PublicVendor struct {
+	Vendor
+	Trusted bool
+	Menu    []MenuItem
+}
+
+// ListPublic returns vendors that are live for customers: active, with a
+// stall name and station set (i.e. onboarded) and at least one available
+// menu item. Higher subscription tiers sort first (L3 top placement,
+// L2 improved placement), then trusted vendors, then by name.
+func (p *Postgres) ListPublic(ctx context.Context, stationCode string) ([]PublicVendor, error) {
+	rows, err := p.Pool.Query(ctx, `
+		SELECT `+vendorCols+`,
+		       (SELECT COUNT(*) FROM orders o WHERE o.vendor_id = vendors.id AND o.status = 'delivered') >= $2
+		FROM vendors
+		WHERE is_active
+		  AND station_code <> ''
+		  AND name <> 'New Merchant'
+		  AND ($1 = '' OR station_code = $1)
+		  AND EXISTS (SELECT 1 FROM menu_items m WHERE m.vendor_id = vendors.id AND m.is_available)
+		ORDER BY subscription_tier DESC, 11 DESC, name ASC
+	`, stationCode, config.TrustedVendorDeliveredOrders)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []PublicVendor
+	idx := map[uuid.UUID]int{}
+	for rows.Next() {
+		var pv PublicVendor
+		if err := rows.Scan(&pv.ID, &pv.Name, &pv.StationCode, &pv.SubscriptionTier, &pv.AcceptMode, &pv.IsActive,
+			&pv.FssaiStatus, &pv.Email, &pv.OwnerName, &pv.StallImageURL, &pv.Trusted); err != nil {
+			return nil, err
+		}
+		pv.Email = nil // never expose merchant contact details to customers
+		pv.OwnerName = nil
+		idx[pv.ID] = len(out)
+		out = append(out, pv)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(out) == 0 {
+		return out, nil
+	}
+	ids := make([]uuid.UUID, 0, len(out))
+	for _, v := range out {
+		ids = append(ids, v.ID)
+	}
+	mrows, err := p.Pool.Query(ctx, `
+		SELECT `+menuItemCols+`
+		FROM menu_items mi
+		LEFT JOIN dish_images di ON di.id = mi.selected_image_id
+		WHERE mi.vendor_id = ANY($1) AND mi.is_available
+		ORDER BY mi.created_at ASC
+	`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer mrows.Close()
+	for mrows.Next() {
+		m, err := scanMenuItem(mrows)
+		if err != nil {
+			return nil, err
+		}
+		if i, ok := idx[m.VendorID]; ok {
+			out[i].Menu = append(out[i].Menu, *m)
+		}
+	}
+	return out, mrows.Err()
 }

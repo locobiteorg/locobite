@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
 import 'repositories/discovery_repository.dart';
-import 'repositories/mock_discovery_repository.dart';
+import 'repositories/real_discovery_repository.dart';
 import 'screens/splash_screen.dart';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -23,9 +23,10 @@ void main() async {
 class LocoBiteApp extends StatelessWidget {
   const LocoBiteApp({super.key});
 
-  // Single point to swap Mock -> Real once the Rust backend is live.
-  // e.g. final DiscoveryRepository repo = RealDiscoveryRepository(apiClient);
-  static final DiscoveryRepository repo = MockDiscoveryRepository();
+  // Single swap point. Vendors/menus now come live from the shared backend
+  // (the same data the merchant app writes). For offline design work use
+  // MockDiscoveryRepository() from repositories/mock_discovery_repository.dart.
+  static final DiscoveryRepository repo = RealDiscoveryRepository();
 
   @override
   Widget build(BuildContext context) {

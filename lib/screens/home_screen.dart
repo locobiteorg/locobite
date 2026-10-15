@@ -34,9 +34,27 @@ class _HomeScreenState extends State<HomeScreen> {
   String _guestName = '';
   bool _askedForName = false;
 
+  bool _loadingVendors = true;
+  String? _loadError;
+
+  /// Loads live vendors/menus from the shared backend. The first request
+  /// after idle can take up to a minute (Render cold start).
+  Future<void> _loadVendors() async {
+    setState(() { _loadingVendors = true; _loadError = null; });
+    try {
+      await _repo.refresh();
+      if (!mounted) return;
+      setState(() { _stations = _repo.getUpcomingStations(); _loadingVendors = false; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _loadError = e.toString(); _loadingVendors = false; });
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    _loadVendors();
     _stations = _repo.getUpcomingStations();
     _train = _repo.getCurrentTrain();
     _trainNumCtrl = TextEditingController(text: _train.number);
@@ -108,7 +126,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
-    ctrl.dispose();
+    // Dispose after the dialog's exit animation finishes with the controller.
+    WidgetsBinding.instance.addPostFrameCallback((_) => ctrl.dispose());
     final trimmed = name?.trim() ?? '';
     if (!mounted || trimmed.length < 2) return;
     final customer = ApiService.currentCustomer;
@@ -254,7 +273,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       Text(
                         i == _dummyNearestStationIndex
                             ? '${_stations[i].code} · nearest (demo)'
-                            : '${_stations[i].code} · ${_stations[i].vendorCount} vendors',
+                        : '${_stations[i].code} · ${_stations[i].vendorCount} '
+                            '${_stations[i].vendorCount == 1 ? 'vendor' : 'vendors'}',
                         style: GoogleFonts.nunito(
                           fontSize: 10,
                           color: AppColors.muted,
@@ -550,13 +570,36 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildVendorList() {
+    if (_loadingVendors) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 64),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+    if (_loadError != null) {
+      return Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(children: [
+          const Icon(Icons.cloud_off_rounded, size: 40, color: AppColors.muted),
+          const SizedBox(height: 12),
+          Text("Couldn't load vendors",
+            style: GoogleFonts.nunito(fontSize: 16, fontWeight: FontWeight.w900, color: AppColors.foreground)),
+          const SizedBox(height: 4),
+          Text('Check your connection and try again.',
+            style: GoogleFonts.nunito(fontSize: 13, color: AppColors.muted)),
+          const SizedBox(height: 16),
+          OutlinedButton(onPressed: _loadVendors, child: const Text('Retry')),
+        ]),
+      );
+    }
     final list = _filteredVendors;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${_stations[_selectedStation].name} · ${list.length} vendors',
+          Text('${_stations[_selectedStation].name} · ${list.length} '
+              '${list.length == 1 ? 'vendor' : 'vendors'}',
             style: GoogleFonts.nunito(
               fontSize: 10, fontWeight: FontWeight.w800,
               color: AppColors.muted, letterSpacing: 1.2)),
@@ -571,7 +614,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () {
                   if (ApiService.currentCustomer != null) {
                     ApiService.recordVendorTap(
-                      ApiService.mapVendorId(v.id),
+                      v.id,
                       ApiService.currentCustomer!.id,
                     );
                   }
@@ -743,7 +786,8 @@ class _StationCard extends StatelessWidget {
               style: GoogleFonts.nunito(
                 fontSize: 12, fontWeight: FontWeight.w900,
                 color: isSelected ? Colors.white : AppColors.foreground)),
-            Text('${station.vendorCount} vendors · Plt ${station.platform}',
+            Text('${station.vendorCount} '
+                '${station.vendorCount == 1 ? 'vendor' : 'vendors'} · Plt ${station.platform}',
               style: GoogleFonts.nunito(
                 fontSize: 10,
                 color: isSelected ? Colors.white60 : AppColors.muted)),
@@ -803,16 +847,6 @@ class _VendorCard extends StatelessWidget {
                         color: Colors.white, fontSize: 9, fontWeight: FontWeight.w900)),
                   ),
                 ),
-                Positioned(
-                  bottom: 8, left: 10,
-                  child: Wrap(spacing: 6, children: [
-                    if (vendor.trusted)
-                      _BadgePill(label: '✓ Trusted', bgColor: AppColors.primary),
-                    if (vendor.zeroCommission)
-                      _BadgePill(label: 'Zero Commission', bgColor: Colors.white.withOpacity(0.2),
-                        textColor: Colors.white),
-                  ]),
-                ),
               ],
             ),
             Padding(
@@ -820,6 +854,26 @@ class _VendorCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (vendor.trusted || vendor.zeroCommission) ...[
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (vendor.trusted)
+                          _BadgePill(
+                            label: '✓ Trusted',
+                            bgColor: AppColors.primary,
+                          ),
+                        if (vendor.zeroCommission)
+                          _BadgePill(
+                            label: 'Zero Commission',
+                            bgColor: AppColors.amber.withValues(alpha: 0.15),
+                            textColor: AppColors.amber,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -835,7 +889,7 @@ class _VendorCard extends StatelessWidget {
                         ]),
                       ),
                       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                        Container(
+                        if (vendor.reviewCount > 0) Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF0FDF4),
@@ -876,9 +930,10 @@ class _VendorCard extends StatelessWidget {
                     children: [
                       Text(vendor.priceRange,
                         style: GoogleFonts.nunito(fontSize: 11, color: AppColors.muted)),
-                      Text('${vendor.reviewCount.toString().replaceAllMapped(
-                        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} reviews',
-                        style: GoogleFonts.nunito(fontSize: 11, color: AppColors.muted)),
+                      if (vendor.reviewCount > 0)
+                        Text('${vendor.reviewCount.toString().replaceAllMapped(
+                          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} reviews',
+                          style: GoogleFonts.nunito(fontSize: 11, color: AppColors.muted)),
                     ],
                   ),
                 ],
