@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/locobite/backend/internal/customers"
 	"github.com/locobite/backend/internal/db"
+	"github.com/locobite/backend/internal/dishes"
 	"github.com/locobite/backend/internal/httperr"
 	"github.com/locobite/backend/internal/orders"
 	"github.com/locobite/backend/internal/payments"
@@ -41,6 +42,7 @@ func main() {
 	custRepo := customers.NewPostgres(pool)
 	vendorRepo := vendors.NewPostgres(pool)
 	payRepo := payments.NewPostgres(pool)
+	dishRepo := dishes.NewPostgres(pool)
 	provider := &payments.StubProvider{APIKey: apiKey}
 
 	oh := &orders.Handler{
@@ -53,6 +55,7 @@ func main() {
 	}
 	ch := &customers.Handler{Pool: pool, Repo: custRepo, Provider: provider}
 	vh := &vendors.Handler{Pool: pool, Repo: vendorRepo, Payments: payRepo, Provider: provider}
+	dh := &dishes.Handler{Repo: dishRepo}
 
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -67,6 +70,7 @@ func main() {
 	oh.Routes(r)
 	ch.Routes(r)
 	vh.Routes(r)
+	dh.Routes(r)
 
 	go oh.AutoAcceptJob(ctx, 15*time.Second)
 

@@ -23,6 +23,7 @@ type Repository interface {
 	SetPaymentVerified(ctx context.Context, tx pgx.Tx, id uuid.UUID, verified bool) error
 	AddToAmount(ctx context.Context, tx pgx.Tx, id uuid.UUID, paise int) error
 	ListByCustomer(ctx context.Context, customerID uuid.UUID, limit, offset int) ([]Order, error)
+	ListByVendor(ctx context.Context, vendorID uuid.UUID, limit, offset int) ([]Order, error)
 	ListRequestedForAutoAccept(ctx context.Context, olderThan time.Time) ([]Order, error)
 	VendorAcceptMode(ctx context.Context, vendorID uuid.UUID) (AcceptMode, error)
 }
@@ -35,12 +36,18 @@ func NewPostgres(pool *pgxpool.Pool) *Postgres {
 	return &Postgres{Pool: pool}
 }
 
+// orderCols/orderFrom are shared by every order read so the rejection
+// penalty (server-computed, read-only for clients) is always available.
+const orderCols = `o.id, o.customer_id, o.vendor_id, o.status, o.amount_paise, o.train_number, o.direction,
+	o.seat_coach, o.scheduled_arrival, o.delay_updated_at, o.rejection_reason, o.pickup_status,
+	o.has_ten_min_item, o.payment_verified, o.created_at, o.updated_at, vp.amount_paise`
+const orderFrom = `FROM orders o LEFT JOIN vendor_penalties vp ON vp.order_id = o.id`
+
 func (p *Postgres) GetByID(ctx context.Context, id uuid.UUID) (*Order, error) {
 	row := p.Pool.QueryRow(ctx, `
-		SELECT id, customer_id, vendor_id, status, amount_paise, train_number, direction,
-		       seat_coach, scheduled_arrival, delay_updated_at, rejection_reason, pickup_status,
-		       has_ten_min_item, payment_verified, created_at, updated_at
-		FROM orders WHERE id = $1
+		SELECT `+orderCols+`
+		`+orderFrom+`
+		WHERE o.id = $1
 	`, id)
 	o, err := scanOrder(row)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -59,8 +66,11 @@ func (p *Postgres) GetByID(ctx context.Context, id uuid.UUID) (*Order, error) {
 
 func (p *Postgres) GetItems(ctx context.Context, orderID uuid.UUID) ([]LineItem, error) {
 	rows, err := p.Pool.Query(ctx, `
-		SELECT id, order_id, menu_item_id, name, quantity, unit_price_paise, is_ten_min
-		FROM order_items WHERE order_id = $1
+		SELECT oi.id, oi.order_id, oi.menu_item_id, oi.name, oi.quantity, oi.unit_price_paise, oi.is_ten_min,
+		       COALESCE(mi.diet_type::text, 'veg') <> 'non_veg'
+		FROM order_items oi
+		LEFT JOIN menu_items mi ON mi.id = oi.menu_item_id
+		WHERE oi.order_id = $1
 	`, orderID)
 	if err != nil {
 		return nil, err
@@ -69,7 +79,7 @@ func (p *Postgres) GetItems(ctx context.Context, orderID uuid.UUID) ([]LineItem,
 	var items []LineItem
 	for rows.Next() {
 		var it LineItem
-		if err := rows.Scan(&it.ID, &it.OrderID, &it.MenuItemID, &it.Name, &it.Quantity, &it.UnitPricePaise, &it.IsTenMin); err != nil {
+		if err := rows.Scan(&it.ID, &it.OrderID, &it.MenuItemID, &it.Name, &it.Quantity, &it.UnitPricePaise, &it.IsTenMin, &it.IsVeg); err != nil {
 			return nil, err
 		}
 		items = append(items, it)
@@ -171,12 +181,10 @@ func (p *Postgres) AddToAmount(ctx context.Context, tx pgx.Tx, id uuid.UUID, pai
 
 func (p *Postgres) ListByCustomer(ctx context.Context, customerID uuid.UUID, limit, offset int) ([]Order, error) {
 	rows, err := p.Pool.Query(ctx, `
-		SELECT id, customer_id, vendor_id, status, amount_paise, train_number, direction,
-		       seat_coach, scheduled_arrival, delay_updated_at, rejection_reason, pickup_status,
-		       has_ten_min_item, payment_verified, created_at, updated_at
-		FROM orders
-		WHERE customer_id = $1
-		ORDER BY created_at DESC
+		SELECT `+orderCols+`
+		`+orderFrom+`
+		WHERE o.customer_id = $1
+		ORDER BY o.created_at DESC
 		LIMIT $2 OFFSET $3
 	`, customerID, limit, offset)
 	if err != nil {
@@ -191,16 +199,80 @@ func (p *Postgres) ListByCustomer(ctx context.Context, customerID uuid.UUID, lim
 		}
 		out = append(out, *o)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, p.attachItems(ctx, out)
+}
+
+// attachItems loads line items for a page of orders in one query, so list
+// endpoints don't return `items: null`.
+func (p *Postgres) attachItems(ctx context.Context, orders []Order) error {
+	if len(orders) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, len(orders))
+	idx := make(map[uuid.UUID]int, len(orders))
+	for i := range orders {
+		ids[i] = orders[i].ID
+		idx[orders[i].ID] = i
+	}
+	rows, err := p.Pool.Query(ctx, `
+		SELECT oi.id, oi.order_id, oi.menu_item_id, oi.name, oi.quantity, oi.unit_price_paise, oi.is_ten_min,
+		       COALESCE(mi.diet_type::text, 'veg') <> 'non_veg'
+		FROM order_items oi
+		LEFT JOIN menu_items mi ON mi.id = oi.menu_item_id
+		WHERE oi.order_id = ANY($1)
+	`, ids)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var it LineItem
+		if err := rows.Scan(&it.ID, &it.OrderID, &it.MenuItemID, &it.Name, &it.Quantity, &it.UnitPricePaise, &it.IsTenMin, &it.IsVeg); err != nil {
+			return err
+		}
+		if i, ok := idx[it.OrderID]; ok {
+			orders[i].Items = append(orders[i].Items, it)
+		}
+	}
+	return rows.Err()
+}
+
+// ListByVendor powers the merchant app's live order queue.
+func (p *Postgres) ListByVendor(ctx context.Context, vendorID uuid.UUID, limit, offset int) ([]Order, error) {
+	rows, err := p.Pool.Query(ctx, `
+		SELECT `+orderCols+`
+		`+orderFrom+`
+		WHERE o.vendor_id = $1
+		ORDER BY o.created_at DESC
+		LIMIT $2 OFFSET $3
+	`, vendorID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Order
+	for rows.Next() {
+		o, err := scanOrder(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *o)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, p.attachItems(ctx, out)
 }
 
 func (p *Postgres) ListRequestedForAutoAccept(ctx context.Context, olderThan time.Time) ([]Order, error) {
 	rows, err := p.Pool.Query(ctx, `
-		SELECT o.id, o.customer_id, o.vendor_id, o.status, o.amount_paise, o.train_number, o.direction,
-		       o.seat_coach, o.scheduled_arrival, o.delay_updated_at, o.rejection_reason, o.pickup_status,
-		       o.has_ten_min_item, o.payment_verified, o.created_at, o.updated_at
+		SELECT `+orderCols+`
 		FROM orders o
 		JOIN vendors v ON v.id = o.vendor_id
+		LEFT JOIN vendor_penalties vp ON vp.order_id = o.id
 		WHERE o.status = 'requested'
 		  AND v.accept_mode = 'manual'
 		  AND o.created_at <= $1
@@ -242,7 +314,7 @@ func scanOrder(row scanner) (*Order, error) {
 	err := row.Scan(
 		&o.ID, &o.CustomerID, &o.VendorID, &o.Status, &o.AmountPaise, &o.TrainNumber, &o.Direction,
 		&o.SeatCoach, &o.ScheduledArrival, &o.DelayUpdatedAt, &reason, &o.PickupStatus,
-		&o.HasTenMinItem, &o.PaymentVerified, &o.CreatedAt, &o.UpdatedAt,
+		&o.HasTenMinItem, &o.PaymentVerified, &o.CreatedAt, &o.UpdatedAt, &o.PenaltyPaise,
 	)
 	if err != nil {
 		return nil, err

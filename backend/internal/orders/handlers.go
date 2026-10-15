@@ -38,6 +38,7 @@ func (h *Handler) Routes(r chi.Router) {
 	r.Patch("/orders/{id}/delay", h.Delay)
 	r.Post("/orders/{id}/reorder", h.Reorder)
 	r.Get("/customers/{id}/orders", h.ListCustomerOrders)
+	r.Get("/vendors/{id}/orders", h.ListVendorOrders)
 	r.Post("/orders/{id}/collect-payment", h.CollectPayment)
 	r.Post("/orders/{id}/cash-received", h.CashReceived)
 	r.Post("/webhooks/payment", h.PaymentWebhook)
@@ -433,6 +434,39 @@ func (h *Handler) ListCustomerOrders(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// ListVendorOrders powers the merchant app's home-screen queue.
+func (h *Handler) ListVendorOrders(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	vid, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		httperr.Write(w, http.StatusBadRequest, "invalid_id", "invalid vendor id")
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	list, err := h.Orders.ListByVendor(ctx, vid, limit, offset)
+	if err != nil {
+		httperr.Write(w, http.StatusInternalServerError, "internal_error", "failed to list orders")
+		return
+	}
+	out := make([]map[string]any, 0, len(list))
+	for i := range list {
+		o := list[i]
+		out = append(out, orderJSON(&o))
+	}
+	httperr.JSON(w, http.StatusOK, map[string]any{
+		"orders": out,
+		"limit":  limit,
+		"offset": offset,
+	})
+}
+
 func (h *Handler) Reorder(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	id, err := parseID(r)
@@ -488,5 +522,8 @@ func orderJSON(o *Order) map[string]any {
 		"created_at":        o.CreatedAt,
 		"updated_at":        o.UpdatedAt,
 		"items":             o.Items,
+		// Read-only, server-computed. Clients must display this as-is and
+		// never recompute the penalty band or the 75/25 split themselves.
+		"penalty_paise": o.PenaltyPaise,
 	}
 }
