@@ -71,16 +71,6 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 88, height: 88,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: Colors.white.withOpacity(0.3), width: 2),
-                  ),
-                  child: const Icon(Icons.train_rounded, size: 44, color: Colors.white),
-                ),
-                const SizedBox(height: 20),
                 Text(
                   AppStrings.appName,
                   style: GoogleFonts.nunito(
