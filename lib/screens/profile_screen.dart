@@ -75,6 +75,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               setState(() => _loading = true);
               try {
                 await ApiService.deleteAccount(customer.id);
+                await ApiService.endSession();
                 setState(() => _loading = false);
                 if (mounted) {
                   Navigator.pushAndRemoveUntil(
@@ -331,8 +332,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildSignOut() {
     return OutlinedButton.icon(
-      onPressed: () {
-        ApiService.currentCustomer = null;
+      onPressed: () async {
+        await ApiService.endSession();
+        if (!mounted) return;
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (_) => const LoginScreen()),

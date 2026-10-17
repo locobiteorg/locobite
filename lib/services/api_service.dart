@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../shared/models/models.dart';
 import '../shared/models/order.dart' as model;
 
@@ -26,6 +27,31 @@ class ApiService {
       return (data['vendors'] as List).cast<Map<String, dynamic>>();
     }
     throw _parseError(response);
+  }
+
+  /// Remembered login: Supabase keeps the session on the device and refreshes
+  /// it until the user signs out, so returning users skip the OTP. Returns
+  /// false when there is no saved session. Throws if the backend can't be
+  /// reached (the session is kept, so the next launch simply tries again).
+  static Future<bool> restoreSession() async {
+    String? email;
+    try {
+      email = Supabase.instance.client.auth.currentSession?.user.email;
+    } catch (_) {
+      return false; // Supabase not initialised (e.g. in tests)
+    }
+    if (email == null) return false;
+    await login(email).timeout(const Duration(seconds: 70));
+    return true;
+  }
+
+  /// Ends the remembered session. Call on sign-out / account deletion, or the
+  /// next launch would sign the user straight back in.
+  static Future<void> endSession() async {
+    currentCustomer = null;
+    try {
+      await Supabase.instance.client.auth.signOut();
+    } catch (_) {}
   }
 
   static Future<Customer> login(String phone, {String? name}) async {

@@ -48,6 +48,17 @@ class _SplashScreenState extends State<SplashScreen>
         // Fall back to the normal login screen.
       }
     }
+    try {
+      if (await ApiService.restoreSession()) {
+        if (mounted) {
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
+        }
+        return;
+      }
+    } catch (_) {
+      // Backend unreachable: fall through to login. The saved session is kept,
+      // so the next launch retries automatically.
+    }
     if (mounted) {
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
     }
