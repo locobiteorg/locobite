@@ -18,15 +18,14 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
-  final List<TextEditingController> _otpCtrls =
-      List.generate(6, (_) => TextEditingController());
-  final List<FocusNode> _otpFocus = List.generate(6, (_) => FocusNode());
+  // One field for the whole code so it can be pasted (or autofilled).
+  final _otpCtrl = TextEditingController();
   int _resendTimer = 30;
 
   String get _typedName => _nameCtrl.text.trim();
 
   void _loginAndProceed() async {
-    final otpCode = _otpCtrls.map((c) => c.text).join();
+    final otpCode = _otpCtrl.text.trim();
     if (otpCode.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a 6-digit OTP')),
@@ -75,8 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
-    for (final c in _otpCtrls) c.dispose();
-    for (final f in _otpFocus) f.dispose();
+    _otpCtrl.dispose();
     super.dispose();
   }
 
@@ -309,47 +307,46 @@ class _LoginScreenState extends State<LoginScreen> {
           )),
           const SizedBox(height: 32),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(6, (i) => SizedBox(
-              width: 46, height: 56,
-              child: TextField(
-                controller: _otpCtrls[i],
-                focusNode: _otpFocus[i],
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(1),
-                ],
-                onChanged: (v) {
-                  if (v.isNotEmpty && i < 5) {
-                    FocusScope.of(context).requestFocus(_otpFocus[i + 1]);
-                  }
-                },
-                style: GoogleFonts.nunito(
-                  fontSize: 20, fontWeight: FontWeight.w900,
-                  color: AppColors.foreground,
-                ),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.primaryLight, width: 2),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: AppColors.primaryLight, width: 2),
-                  ),
-                  contentPadding: EdgeInsets.zero,
-                ),
+          TextField(
+            controller: _otpCtrl,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            autofillHints: const [AutofillHints.oneTimeCode],
+            enableInteractiveSelection: true, // long-press → Paste
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(6),
+            ],
+            onChanged: (v) {
+              // Submit as soon as all 6 digits are in (typed or pasted).
+              if (v.length == 6 && !_loading) _loginAndProceed();
+            },
+            style: GoogleFonts.nunito(
+              fontSize: 26, fontWeight: FontWeight.w900,
+              color: AppColors.foreground, letterSpacing: 12,
+            ),
+            decoration: InputDecoration(
+              hintText: '------',
+              hintStyle: GoogleFonts.nunito(
+                fontSize: 26, fontWeight: FontWeight.w900,
+                color: AppColors.muted.withOpacity(0.4), letterSpacing: 12),
+              filled: true,
+              fillColor: AppColors.surface,
+              contentPadding: const EdgeInsets.symmetric(vertical: 18),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.primaryLight, width: 2),
               ),
-            )),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.primaryLight, width: 2),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              ),
+            ),
           ),
 
           const SizedBox(height: 32),
